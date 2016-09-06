@@ -34,7 +34,7 @@ preycap<-preycap[,-4] #remove column 4
 preycapL <- melt(preycap, id.vars=c("island","site","web"),                                 measure.vars=c("obs1", "obs2", "obs3","obs4","obs5", "obs6", "obs7", "obs8"),   variable.name="obs", value.name="preynum")
 
 #Alternative method - use tidyr (new way- much more efficient code!)
-preycapL<-gather(preycap, "obs", "preynum", 4:11)
+preycapL<-gather(preycap, "obs", "preynum", 4:11, factor_key=T)
 
 
 ###############################
@@ -44,9 +44,13 @@ summary(preycapL)# Look at data
 str(preycapL) #check to make sure factors are factors and numbers are numeric or integer
 preycapL$preynum<-as.numeric(preycapL$preynum)
 
+with(preycapL, table(site, obs))
+
 #delete "obs" from start of variable describing observation number. There are a lot of different ways of doing this. Here are a few possible methods. 
 #this uses gsub to substitute all instances of "obs" with nothing (""). Note that gsub works on character vectors. If a vector is not a character, it will be coerced into being a character vector by gsub. 
 preycapL$obs <- gsub("obs", "", preycapL$obs)
+#with(preycapL, table(site, obs2)) - checked to make sure was correct. 
+
 #\\D means select all non-digits, and then substitute with nothing ("")
 preycapL$obs <- gsub("\\D", "", preycapL$obs)
 #Look at this website for other codes for substituting in gsub 
@@ -54,8 +58,6 @@ preycapL$obs <- gsub("\\D", "", preycapL$obs)
 
 #using substr- this is saying "keep the 4th element (start at 4, stop at 4)". 
 preycapL$obs<-substr(preycapL$obs, 4, 4)
-#change class to numeric
-preycapL$obs<-as.numeric(preycapL$obs)
 
 #all three of these methods would work to remove the "obs". Now we need to change obs from character to numeric. 
 
@@ -66,13 +68,14 @@ preycapL$obs<-as.numeric(preycapL$obs)
 #clean data entry errors, starting with site
 levels(as.factor(preycapL$site))
 #first of all, have some upper and some lower case. Change all to lower case
-preycapL$site<-tolower(preycap$site)
+preycapL$site<-as.factor(tolower(preycap$site))
 
 #now have issues with the "forbi" site, which has a data entry error
 #can fix this a bunch of ways, one option is with gsub
-preycapL$site <- gsub("forbid", "forbi",preycapL$site)
+preycapL$site2 <- gsub("forbid", "forbi",preycapL$site)
 #another method using indexing
 levels(preycapL$site)[levels(preycapL$site)=="forbid"] <- "forbi"
+levels(preycapL$site)[levels(preycapL$site)=="ritd"] <- "ritd"
 #can you think of any other options? 
 
 #check class again
@@ -84,6 +87,7 @@ preycapL$site<-as.factor(preycapL$site)
 #Look at response (preynum)
 summary(preycapL$preynum) #where are all these NA's coming from? webs that were not observed multiple times - not useful data. 
 preycapL<-preycapL[!is.na(preycapL$preynum),]
+preycapL3<-na.omit(preycapL) #deletes entire row if NA is present in any cell in that row
 
 #One final look to see if everything is in right format
 str(preycapL)
@@ -142,15 +146,16 @@ levels(transplant$island) <- gsub("Gaum", "Guam", levels(transplant$island))
 levels(transplant$island) <- gsub("Siapan", "Saipan", levels(transplant$island))
 transplant$site<-as.factor(tolower(transplant$site))
 transplant$island<-as.factor(tolower(transplant$island))
+
 # remove trailing whitespace
 levels(transplant$site)
 transplant$site<-as.factor(trimws(transplant$site))
-#there are many other nethods to do this as well. 
+#there are many other methods to do this as well. 
 
 ######### Dates ###################
 #change date format to standard yyyymmdd format
 #helpful site: https://www.r-bloggers.com/date-formats-in-r/
-levels(transplant$startdate)
+levels(as.factor(transplant$startdate))
 class(transplant$startdate)
 #problems- missing year. Date format is okay, but wnat to change to a more standard yyyymmdd format
 transplant$year<-2013 #this experiment happened in 2013. Added this.
