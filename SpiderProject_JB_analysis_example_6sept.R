@@ -8,6 +8,7 @@ library(reshape2) #for melt - note that many reshape2 functions are now availabl
 library(tidyr)
 library(dplyr) #note that many functions are similar for plyr and dplyr but have slightly different syntax in dplyr. Use the newer one (dplyr) to avoid issues between two packages. 
 library(ggplot2)
+library(lubridate)
 
 #may need to install tibble first, and may need to restart R session to clear conflicting packages
 
@@ -72,7 +73,7 @@ preycapL$site<-as.factor(tolower(preycap$site))
 
 #now have issues with the "forbi" site, which has a data entry error
 #can fix this a bunch of ways, one option is with gsub
-preycapL$site2 <- gsub("forbid", "forbi",preycapL$site)
+preycapL$site <- gsub("forbid", "forbi",preycapL$site)
 #another method using indexing
 levels(preycapL$site)[levels(preycapL$site)=="forbid"] <- "forbi"
 levels(preycapL$site)[levels(preycapL$site)=="ritd"] <- "ritd"
@@ -132,14 +133,23 @@ transplant<-read.csv("Saipan_Guam_Transplant_asentered.csv")
 
 #data dictionary: 
 #island = island where study was conducted, Guam or Saipan
-#site = site where study was conducted, 
+#site = site where study was conducted
+#web = Jeff's naming convention for webs, each web has a unique ID
+#native = was this spider found in place (yes) or moved to the location (no)?
+#netting = was this spider in a netting treatment? 
+#startdate = date experiment started
+#enddate = last date spider was checked (note after spider disappeared, checks stopped)
+#spidpres = was spider present on enddate? 
+#webpres = was web present on enddate? 
+#websize = how big was the web (cm)?
+
 
 #look at data
 str(transplant)
 summary(transplant)
 
 #rename columns so they are lower case. There are a bunch of ways to do this. Here is one using the rename function in the dplyr package (note that this function has slightly different syntax than the one in the ddply package)
-transplant<-rename(transplant, island=Island, site=Site, web=Web.., native=Native, netting=Netting, startdate=Start.Date, enddate=End.Date, totaldays=Total.Days)
+transplant<-rename(transplant, island=Island, site=Site, web=Web.., native=Native, netting=Netting, startdate=Start.Date, enddate=End.Date, totaldays=Total.Days, spidpres=SpidPres, webpres=WebPres, websize=WebSize.cm.)
 
 #some data cleaning needed
 levels(transplant$island) <- gsub("Gaum", "Guam", levels(transplant$island))
@@ -155,9 +165,12 @@ transplant$site<-as.factor(trimws(transplant$site))
 ######### Dates ###################
 #change date format to standard yyyymmdd format
 #helpful site: https://www.r-bloggers.com/date-formats-in-r/
+
 levels(as.factor(transplant$startdate))
 class(transplant$startdate)
+
 #problems- missing year. Date format is okay, but wnat to change to a more standard yyyymmdd format
+
 transplant$year<-2013 #this experiment happened in 2013. Added this.
 #change both startdate & year to character
 transplant$year<-as.character(transplant$year)
@@ -165,35 +178,74 @@ transplant$startdate<-as.character(transplant$startdate)
 #combine using unite in tidyr package
 transplant<-unite(transplant, startdate, c(startdate, year), sep="-")
 #now, tell R startdate is a real date in a specific format
-transplant$startdate2<-as.Date(as.character(transplant$startdate), "%d-%b-%Y")
-class(transplant$startdate2) #now R sees startdate2 as a Date
+transplant$startdate<-as.Date(as.character(transplant$startdate), "%d-%b-%Y")
+class(transplant$startdate) #now R sees startdate2 as a Date
 
-#challenge: try doing this with lubridate package
+
+#repeat for end date, using lubridate instead of as.Date
+transplant$year<-2013 #this experiment happened in 2013. Added this.
+#change both startdate & year to character
+transplant$year<-as.character(transplant$year)
+transplant$enddate<-as.character(transplant$enddate)
+transplant<-unite(transplant, enddate, c(enddate, year), sep="-")
+
+#challenge: try changing to date with lubridate package (instead of as.Date)
+library(lubridate)
+today() #gives today's date
+transplant$enddate<-dmy(transplant$enddate)
+
+#Now, create a new column called duration
+transplant$duration<-transplant$enddate-transplant$startdate
 
 ######### Merging ###################
 #merge with another database
 #there are several functions that merge, including "join" in the plyr package, "merge" in the base package, and various join functions in the dplyr package. We're going to use dplyr, but each of these functions quite similarly. 
 
-island_bird<-read.csv("island_birdstatus.csv", header=T)
+island_bird<-read.csv("island_birdstatus.csv")
 str(island_bird)
 levels(island_bird$island)
 
 #guidelines: a is one table, b is another table, x1 is the column they share (could be multiple columns)
-left_join(a, b, by = "x1") # Join matching rows from b to a.
-right_join(a, b, by = "x1") #Join matching rows from a to b.
-inner_join(a, b, by = "x1") #Join data. Retain only rows in both sets.
-full_join(a, b, by = "x1") #Join data. Retain all values, all rows.
-semi_join(a, b, by="x1") #join all rows in a that have a match in b.
-anti_join (a, b, by="x1") #filter out so you retain all rows in a that do not have a match in b
+# left_join(a, b, by = "x1") # Join matching rows from b to a; keeps all columns from both a and b. 
+# right_join(a, b, by = "x1") #Join matching rows from a to b; keeps all columns from both a and b. 
+# inner_join(a, b, by = "x1") #Join data. Retain only rows that are in both sets; keeps all columns in both dataframes. 
+# full_join(a, b, by = "x1") #Join data. Retain all values, all rows & columns.
 
+#before you run this, guess how many rows and columns will be in each new dataframe
 transplant2<-left_join(transplant, island_bird, by="island")
-str(transplant2)
+transplant3<-right_join(transplant, island_bird, by="island")
+transplant4<-inner_join(transplant, island_bird, by="island")
+transplant5<-full_join(transplant, island_bird, by="island")
+
+##
+#these two functions are slightly different- they don't really join, but allow you to keep only subsets of your main dataframe based on what is either in or not in another dataframe. 
+# semi_join(a, b, by="x1") #returns all rows in a that have a match in b, while keeping only the columns in a. This is a way to filter out your data based on a look-up table, for example. 
+# anti_join (a, b, by="x1") #filter out so you retain all rows in a that do not have a match in b, keeping only columns in a
+
+transplant6<-semi_join(transplant, island_bird, by="island")
+transplant7<-anti_join(transplant, island_bird, by="island")
+
+#If your columns have different names in each database, just give this information to the join function in an argument: by = c("a" = "b") will match a column named "a" in your "x" dataframe to a column named "b" in your "y" dataframe.
+transplant2<-left_join(transplant, island_bird, by=c("island"="island")) #example
 
 ######### Subsetting #############
 #get subset that was actually transplanted rather than ones that were observed in place. 
-#first option- use indexing
+#first option- use square brackets
 truetrans<-transplant[transplant$native=="no",]
 #alternatively, use subset function in base 
 truetrans2<-subset(transplant, native=="no")
 #alternatively, use filter in dplyr package
 truetrans3<-filter(transplant, native=="no")
+
+#subset on multiple arguments
+filter(transplant, site=="ladt" | site=="forbi")
+filter(transplant, site=="ladt" & netting=="no")
+
+########################
+#separating one column into two columns
+transplant<-separate(transplant, col=web, into=c("web_a", "web_b"), sep="'", remove=F)
+
+#combining two columns into one column (note the underscore after unite)
+transplant<-unite_(transplant, "webv2", c("web_a", "web_b"), sep="",)
+
+#######################
