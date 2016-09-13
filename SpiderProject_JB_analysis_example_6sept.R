@@ -143,7 +143,6 @@ transplant<-read.csv("Saipan_Guam_Transplant_asentered.csv")
 #webpres = was web present on enddate? 
 #websize = how big was the web (cm)?
 
-
 #look at data
 str(transplant)
 summary(transplant)
@@ -242,10 +241,19 @@ filter(transplant, site=="ladt" | site=="forbi")
 filter(transplant, site=="ladt" & netting=="no")
 
 ########################
+# Select - use to select columns from a dataframe to include or drop. 
+#here, remove total days because it is not raw data, but calculated data, so shouldn't be in final dataset
+transplant2<-select(transplant2, -totaldays)
+select(transplant2, site, native, netting, duration) #keep just these 4 columns
+
+########################
 #separating one column into two columns
-transplant<-separate(transplant, col=web, into=c("web_a", "web_b"), sep="'", remove=F)
+transplant2<-separate(transplant2, col=web, into=c("web_a", "web_b"), sep="'", remove=F)
 
 #combining two columns into one column (note the underscore after unite)
-transplant<-unite_(transplant, "webv2", c("web_a", "web_b"), sep="",)
-
+transplant2<-unite_(transplant2, "webv2", c("web_a", "web_b"), sep="", remove=T)
 #######################
+
+#write csv file with final, cleaned dataset that we want to work with in the future. In this case, we want the full transplant dataset that has been merged with island. 
+
+write.csv(transplant2, "transplant2.csv") #this will automatically be saved in the project folder. 
