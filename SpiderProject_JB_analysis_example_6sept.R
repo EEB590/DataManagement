@@ -25,7 +25,7 @@ library(lubridate)
 
 ######################
 #load data
-preycap<-read.csv("preycapture_asentered.csv", header=T)
+preycap<-read.csv("preycapture_asentered.csv", header=T, as.is=T)
 
 #totalprey is not raw data - shouldn't be in dataset
 preycap<-preycap[,-4] #remove column 4
@@ -222,17 +222,17 @@ transplant5<-full_join(transplant, island_bird, by="island")
 # anti_join (a, b, by="x1") #filter out so you retain all rows in a that do not have a match in b, keeping only columns in a
 
 transplant6<-semi_join(transplant, island_bird, by="island")
-transplant7<-anti_join(transplant, island_bird, by="island")
+transplant7<-anti_join(island_bird, transplant,  by="island")
 
 #If your columns have different names in each database, just give this information to the join function in an argument: by = c("a" = "b") will match a column named "a" in your "x" dataframe to a column named "b" in your "y" dataframe.
-transplant2<-left_join(transplant, island_bird, by=c("island"="island")) #example
+transplant2<-left_join(transplant, island_bird, by=c(island="isl")) #example
 
 ######### Subsetting #############
 #get subset that was actually transplanted rather than ones that were observed in place. 
 #first option- use square brackets
-truetrans<-transplant[transplant$native=="no",]
+truetrans<-transplant[transplant$native=="no" & transplant$site=="ladt",]
 #alternatively, use subset function in base 
-truetrans2<-subset(transplant, native=="no")
+truetrans2<-subset(transplant, c(native=="no" & site == "ladt"))
 #alternatively, use filter in dplyr package
 truetrans3<-filter(transplant, native=="no")
 
@@ -241,10 +241,10 @@ filter(transplant, site=="ladt" | site=="forbi")
 filter(transplant, site=="ladt" & netting=="no")
 
 ########################
-# Select - use to select columns from a dataframe to include or drop. 
+# Select - use to select columns from a dataframe to include or drop 
 #here, remove total days because it is not raw data, but calculated data, so shouldn't be in final dataset
 transplant2<-select(transplant2, -totaldays)
-select(transplant2, site, native, netting, duration) #keep just these 4 columns
+transplant3<-select(transplant2, site, native, netting, duration) #keep just these 4 columns
 
 ########################
 #separating one column into two columns
@@ -256,4 +256,4 @@ transplant2<-unite_(transplant2, "webv2", c("web_a", "web_b"), sep="", remove=T)
 
 #write csv file with final, cleaned dataset that we want to work with in the future. In this case, we want the full transplant dataset that has been merged with island. 
 
-write.csv(transplant2, "transplant2.csv") #this will automatically be saved in the project folder. 
+write.csv(transplant2, "transplant2.csv", row.names=F) #this will automatically be saved in the project folder. 
